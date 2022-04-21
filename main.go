@@ -3,13 +3,10 @@ package main
 import (
 	"math/rand"
 	"time"
-
-	"os"
-	"os/signal"
 	"syscall"
+
 	
 	"github.com/nsf/termbox-go"
-	"github.com/rivo/tview"
 )
 
 
@@ -34,48 +31,73 @@ func main(){
 	//display matrix
 	
 
-	CloseHandler()
-	
-
+	go exitHandler()
+	// repeat the matrix
 	for {
 		matrix=animateMatrix(matrix)
 		printMatrix(matrix)
 		
-		time.Sleep(time.Millisecond * 200)
+		time.Sleep(time.Millisecond * 50)
 
 
 	}
 
 	
-	
+}
+
+func exitHandler(){
+	for{
+		switch ev := termbox.PollEvent(); ev.Type {
+
+		case termbox.EventKey:
+			if ev.Key == termbox.KeyCtrlC{
+				termbox.Close()
+				syscall.Kill(syscall.Getpid(), syscall.SIGINT)
+
+			}
+		}
+	}
+
 }
 
 
-func CloseHandler(){
-	c := make(chan os.Signal)
-	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
-	go func(){
-		<-c
-		os.Exit(0)
-
-	}()
-}
 func animateMatrix(matrix  [][]int32) [][]int32 {
-	
+		
 	for x := range matrix[0]{
-		for y := 1; y < len(matrix)-1; y++{
+		// slip matrix down by one
+		for y := 1; y < len(matrix); y++{
+
+			//if end or strart of a column, move down
 			if matrix[y][x] != 32 && matrix[y-1][x] == 32{
 				matrix[y][x] = 32;
 				y++
-			}
-
-			if matrix[y][x] == 32 && matrix[y-1][x] != 32{
+			}else if matrix[y][x] == 32 && matrix[y-1][x] != 32{
 				matrix[y][x] = int32(rand.Intn(126-33)+33);
 				y++
 			}
 
 		}
+		
+	}
 
+	for x := range matrix[0]{
+		length := 0
+		
+		for y := 0; y < len(matrix)-1; y++{
+			if matrix[y][x] == matrix[0][x] || (matrix[0][x] != 32 && matrix[y][x] != 32){
+				length++
+			}else{
+				break
+			}
+			if length > rand.Intn(len(matrix)/2)+len(matrix)/5 && matrix[0][x] != 32{
+
+				matrix[0][x] = 32	
+
+			}else if length > rand.Intn(len(matrix)/2)+len(matrix)/2{
+				matrix[0][x] = int32(rand.Intn(126-33)+33)	
+			}
+			
+		}
 	}
 
 	return matrix
@@ -90,7 +112,7 @@ func printMatrix(matrix [][]int32){
 			
 			// if the char is the head of the column, print in different color
 			if y < len(matrix)-1 && matrix[y+1][x] == 32{
-				termbox.SetCell(x, y, matrix[y][x], termbox.ColorRed, termbox.ColorBlack)
+				termbox.SetCell(x, y, matrix[y][x], termbox.ColorYellow, termbox.ColorBlack)
 
 			}else{
 				termbox.SetCell(x, y, matrix[y][x], termbox.ColorGreen, termbox.ColorBlack)
@@ -121,7 +143,7 @@ func generateMatrix(width int, height int) (matrix [][]int32){
 
 	//iterate over columns and rows to and generate matrix
 	for x := 0; x < width; x++ {
-		columnLenght := rand.Intn(height/4)+height/3 // random length for each column
+		columnLenght := rand.Intn(height/2)  // random length for each column
 		arrayLength := 0 // starting length 
 		var isChar bool = rand.Intn(2) == 1 // start random with text or empty 
 		
@@ -144,7 +166,7 @@ func generateMatrix(width int, height int) (matrix [][]int32){
 					columnLenght = rand.Intn(height/4)+height/2 // less characters than spaces looks better
 				}else{
 					isChar = true
-					columnLenght = rand.Intn(height/4)+height/4
+					columnLenght = rand.Intn(height/4)+height/5
 					
 				}
 			
