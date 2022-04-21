@@ -1,98 +1,162 @@
 package main
 
 import (
-	"fmt"
 	"math/rand"
 	"time"
-	
 
-	"golang.org/x/term"
-	"github.com/fatih/color"
+	"os"
+	"os/signal"
+	"syscall"
+	
+	"github.com/nsf/termbox-go"
+	"github.com/rivo/tview"
 )
 
 
 func main(){
 
-	// get the terminal's width and height
-	width, height, err := term.GetSize(0)
-    if err != nil {
-        return
+	// init termbox
+	err := termbox.Init()
+	if err != nil {
+			panic(err)
 	}
 
+	// get the terminal's width and height
+	width, height := termbox.Size()
+	// close termbox when program finishes
+	defer termbox.Close()
+	
 	// generate seed for random number generator
 	rand.Seed(time.Now().UnixNano())
 
 	// generate the base matrix
 	matrix := generateMatrix(width, height)
+	//display matrix
+	
 
-	// set the color to haxor green
-	color.Set(color.FgGreen)
+	CloseHandler()
+	
 
-	// print the matrix rotated 90˚ (matrix is horizontal)
-	for x := range matrix[0]{
-		for y := range matrix{
-			fmt.Printf("%c",matrix[y][x])
-			
-		}
-		fmt.Println()
+	for {
+		matrix=animateMatrix(matrix)
+		printMatrix(matrix)
+		
+		time.Sleep(time.Millisecond * 200)
+
 
 	}
 
+	
+	
 }
 
 
-// takes in two dimension and returns the matrix (vertical)
-func generateMatrix(width int, height int) (matrix [][]int){
-	//create matrix for the terminal 
-	matrix = make([][]int, width)
-	for i := 0; i < width; i++ {
-		matrix[i] = make([]int, height)
+func CloseHandler(){
+	c := make(chan os.Signal)
+	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
+	go func(){
+		<-c
+		os.Exit(0)
+
+	}()
+}
+func animateMatrix(matrix  [][]int32) [][]int32 {
+	
+	for x := range matrix[0]{
+		for y := 1; y < len(matrix)-1; y++{
+			if matrix[y][x] != 32 && matrix[y-1][x] == 32{
+				matrix[y][x] = 32;
+				y++
+			}
+
+			if matrix[y][x] == 32 && matrix[y-1][x] != 32{
+				matrix[y][x] = int32(rand.Intn(126-33)+33);
+				y++
+			}
+
+		}
+
 	}
 
-	// iterate over rows
-	/*
-	>[][][]
-	>[][][]
-	>[][][]
-	*/
-	for i := 0; i < width; i++ {
-		columnLenght := rand.Intn(10)+4 // length of each column 4-14
+	return matrix
+}
+
+
+
+func printMatrix(matrix [][]int32){
+
+	for y := range matrix{
+		for x := range matrix[y]{
+			
+			// if the char is the head of the column, print in different color
+			if y < len(matrix)-1 && matrix[y+1][x] == 32{
+				termbox.SetCell(x, y, matrix[y][x], termbox.ColorRed, termbox.ColorBlack)
+
+			}else{
+				termbox.SetCell(x, y, matrix[y][x], termbox.ColorGreen, termbox.ColorBlack)
+			}
+			
+		}
+	}
+
+	err := termbox.Flush()
+	if err != nil {
+        return
+	}
+	
+}
+
+
+
+
+// takes in two dimension and returns the matrix
+func generateMatrix(width int, height int) (matrix [][]int32){
+
+	//create matrix for the terminal 
+	matrix = make([][]int32, height)
+	
+	for y := 0; y < height; y++ {
+		matrix[y] = make([]int32, width)
+	}
+
+	//iterate over columns and rows to and generate matrix
+	for x := 0; x < width; x++ {
+		columnLenght := rand.Intn(height/4)+height/3 // random length for each column
 		arrayLength := 0 // starting length 
 		var isChar bool = rand.Intn(2) == 1 // start random with text or empty 
+		
 
-		// iterate over columns
-		/*
-		V V V
-		[][][]
-		*/
-		for j := 0; j < height; j++{
-			// check if length is smaller than column length, then add eather a -char- or -null-
+		for y := 0; y < height; y++{
+			// matrix[y][x] = 32	// ASCII(32) == space	
 			if arrayLength <= columnLenght{
-				if isChar == false{ 
-					matrix[i][j] = 32 // add a space ~ ASCII(32): space
+				if isChar{ 
+					matrix[y][x] = int32(rand.Intn(126-33)+33) // add a random value between 33-126 from the ascii table
 				}else{
-					matrix[i][j] = rand.Intn(126-33)+33 // add a random value between 33-126 from the ascii table
+					matrix[y][x] = 32 // add a space ~ ASCII(32): space
+					
 				}
-				arrayLength++ // increase lenght because the column has grown
-
+				arrayLength++ // increase lenght because the column had grown
+			
 			// if character array is too long, switch to the other type and reset new array size
 			}else{
 				if isChar{
 					isChar = false
+					columnLenght = rand.Intn(height/4)+height/2 // less characters than spaces looks better
 				}else{
 					isChar = true
+					columnLenght = rand.Intn(height/4)+height/4
+					
 				}
-
+			
 				// new array size is 0 and create new random size
 				arrayLength = 0
-				columnLenght = rand.Intn(10)+4
-
-				// still need to add a char, so add a space
-				matrix[i][j] = 32
-			}
+							
 			
+				// still need to add a char, so add a space
+				matrix[y][x] = 32
+			}	
+			 
 		}
-		
 	}
 	return
 
