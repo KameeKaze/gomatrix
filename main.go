@@ -38,6 +38,10 @@ func main(){
 		printMatrix(matrix)
 		
 		time.Sleep(time.Millisecond * 50)
+		if w, h := termbox.Size(); w != width || h != height{
+			width, height = termbox.Size()
+			matrix = generateMatrix(width, height)
+		}
 
 
 	}
